@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>Chess — Social</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg:       #161616;
+  --surface:  #1f1f1f;
+  --surface2: #282828;
+  --border:   #333;
+  --accent:   #9e9e9e;
+  --gold:     #d4a843;
+  --silver:   #a8b2c1;
+  --bronze:   #c4845a;
+  --text:     #ececec;
+  --dim:      #777;
+  --green:    #4caf50;
+  --red:      #ef5350;
+}
+* { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+html,body { height:100%; background:var(--bg); color:var(--text);
+  font-family:'DM Sans',sans-serif; overflow:hidden; }
+
+/* ── App shell ── */
+#app { display:flex; flex-direction:column; height:100vh; max-width:480px; margin:0 auto; }
+
+/* ── Tab bar ── */
+#tabbar {
+  display:flex; background:var(--surface); border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.tab {
+  flex:1; padding:12px 0; text-align:center; cursor:pointer;
+  font-family:'Rajdhani',sans-serif; font-weight:600; font-size:13px;
+  color:var(--dim); border-bottom:2px solid transparent;
+  transition:all 0.2s; letter-spacing:0.5px; text-transform:uppercase;
+}
+.tab.active { color:var(--text); border-bottom-color:var(--accent); }
+.tab-icon { font-size:16px; display:block; margin-bottom:2px; }
+
+/* ── Pages ── */
+.page { display:none; flex:1; overflow-y:auto; padding:14px; flex-direction:column; gap:12px; }
+.page.active { display:flex; }
+.page::-webkit-scrollbar { width:4px; }
+.page::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+/* ── Search bar ── */
+.search-wrap {
+  position:relative; flex-shrink:0;
+}
+.search-input {
+  width:100%; background:var(--surface); border:1px solid var(--border);
+  border-radius:12px; padding:11px 16px 11px 42px;
+  color:var(--text); font-family:'DM Sans',sans-serif; font-size:15px;
+  outline:none; transition:border-color 0.2s;
+}
+.search-input:focus { border-color:var(--accent); }
+.search-input::placeholder { color:var(--dim); }
+.search-icon { position:absolute; left:14px; top:50%; transform:translateY(-50%);
+  font-size:16px; color:var(--dim); pointer-events:none; }
+.search-clear {
+  position:absolute; right:12px; top:50%; transform:translateY(-50%);
+  background:var(--surface2); border:none; color:var(--dim); width:22px; height:22px;
+  border-radius:50%; cursor:pointer; font-size:14px; display:none;
+  align-items:center; justify-content:center;
+}
+.search-clear.show { display:flex; }
+
+/* ── Section header ── */
+.sec-head {
+  font-family:'Rajdhani',sans-serif; font-weight:700; font-size:12px;
+  letter-spacing:1.5px; text-transform:uppercase; color:var(--dim);
+  padding:0 2px; flex-shrink:0;
+}
+
+/* ── Player card ── */
+.pcard {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:14px; padding:12px 14px;
+  display:flex; align-items:center; gap:12px;
+  transition:border-color 0.2s, transform 0.15s;
+  cursor:pointer; position:relative; overflow:hidden;
+}
+.pcard:hover  { border-color:var(--accent); transform:translateY(-1px); }
+.pcard:active { transform:scale(0.98); }
+.pcard::before {
+  content:''; position:absolute; left:0; top:0; bottom:0; width:3px;
+  border-radius:3px 0 0 3px; opacity:0;
+  transition:opacity 0.2s;
+}
+.pcard.rank-1::before { background:var(--gold);   opacity:1; }
+.pcard.rank-2::before { background:var(--silver); opacity:1; }
+.pcard.rank-3::before { background:var(--bronze); opacity:1; }
+
+.avatar {
+  width:46px; height:46px; border-radius:50%;
+  background:var(--surface2); flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  font-size:20px; border:2px solid var(--border);
+  overflow:hidden; position:relative;
+}
+.avatar img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
+.avatar-online {
+  position:absolute; bottom:1px; right:1px;
+  width:10px; height:10px; background:var(--green);
+  border-radius:50%; border:2px solid var(--surface);
+}
+
+.pcard-info { flex:1; min-width:0; }
+.pcard-name {
+  font-family:'Rajdhani',sans-serif; font-weight:700; font-size:17px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.pcard-sub { font-size:12px; color:var(--dim); display:flex; gap:8px; margin-top:2px; }
+.pcard-username { color:var(--accent); }
+.pcard-stats { display:flex; gap:6px; align-items:center; margin-top:4px; flex-wrap:wrap; }
+
+.badge {
+  border-radius:6px; padding:2px 8px; font-size:11px; font-weight:600;
+  font-family:'Rajdhani',sans-serif;
+}
+.badge-elo  { background:rgba(158,158,158,0.15); color:var(--accent); }
+.badge-lvl  { background:rgba(212,168,67,0.15);  color:var(--gold); }
+.badge-wins { background:rgba(76,175,80,0.12);   color:var(--green); }
+
+.rank-badge {
+  font-family:'Rajdhani',sans-serif; font-weight:700; font-size:18px;
+  min-width:32px; text-align:center; flex-shrink:0;
+}
+.rank-1 .rank-badge { color:var(--gold); }
+.rank-2 .rank-badge { color:var(--silver); }
+.rank-3 .rank-badge { color:var(--bronze); }
+.rank-other .rank-badge { color:var(--dim); font-size:14px; }
+
+/* ── Action buttons ── */
+.pcard-actions { display:flex; gap:6px; flex-shrink:0; }
+.action-btn {
+  border-radius:8px; padding:6px 10px; font-size:12px; font-weight:600;
+  font-family:'Rajdhani',sans-serif; cursor:pointer; border:1px solid var(--border);
+  transition:all 0.15s; background:var(--surface2); color:var(--text);
+  white-space:nowrap;
+}
+.action-btn:hover  { background:var(--accent); border-color:var(--accent); color:#fff; }
+.action-btn:active { transform:scale(0.95); }
+.action-btn.added  { background:transparent; color:var(--green); border-color:var(--green); cursor:default; }
+.action-btn.challenge { background:rgba(158,158,158,0.1); }
+
+/* ── Leaderboard podium ── */
+.podium {
+  display:flex; align-items:flex-end; justify-content:center; gap:8px;
+  padding:16px 8px 8px; flex-shrink:0;
+}
+.podium-slot {
+  flex:1; display:flex; flex-direction:column; align-items:center; gap:6px;
+  cursor:pointer;
+}
+.podium-avatar {
+  border-radius:50%; border:3px solid var(--border);
+  display:flex; align-items:center; justify-content:center;
+  font-size:24px; background:var(--surface2); overflow:hidden; flex-shrink:0;
+}
+.podium-slot:nth-child(1) .podium-avatar { width:64px; height:64px; border-color:var(--silver); }
+.podium-slot:nth-child(2) .podium-avatar { width:72px; height:72px; border-color:var(--gold); }
+.podium-slot:nth-child(3) .podium-avatar { width:60px; height:60px; border-color:var(--bronze); }
+.podium-avatar img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
+.podium-name { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:13px;
+  text-align:center; max-width:80px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.podium-elo  { font-size:11px; color:var(--dim); }
+.podium-crown { font-size:20px; }
+.podium-bar {
+  width:100%; border-radius:8px 8px 0 0; display:flex; align-items:center;
+  justify-content:center; font-family:'Rajdhani',sans-serif; font-weight:700; font-size:20px;
+}
+.podium-slot:nth-child(1) .podium-bar { height:50px; background:rgba(168,178,193,0.15); color:var(--silver); }
+.podium-slot:nth-child(2) .podium-bar { height:70px; background:rgba(212,168,67,0.15);  color:var(--gold); }
+.podium-slot:nth-child(3) .podium-bar { height:40px; background:rgba(196,132,90,0.15);  color:var(--bronze); }
+
+/* ── My profile card ── */
+.my-profile {
+  background:linear-gradient(135deg,var(--surface) 0%,var(--surface2) 100%);
+  border:1px solid var(--border); border-radius:16px; padding:16px;
+  display:flex; gap:14px; align-items:center; flex-shrink:0;
+  position:relative; overflow:hidden;
+}
+.my-profile::after {
+  content:'♟'; position:absolute; right:-8px; bottom:-16px;
+  font-size:80px; opacity:0.04; pointer-events:none;
+}
+.my-avatar {
+  width:62px; height:62px; border-radius:50%; flex-shrink:0;
+  background:var(--surface2); border:3px solid var(--accent);
+  display:flex; align-items:center; justify-content:center; font-size:28px; overflow:hidden;
+}
+.my-avatar img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
+.my-info { flex:1; min-width:0; }
+.my-name { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:22px; }
+.my-username { font-size:13px; color:var(--accent); margin-top:1px; }
+.my-badges { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+.my-stats {
+  display:grid; grid-template-columns:1fr 1fr 1fr;
+  gap:8px; margin-top:10px; flex-shrink:0;
+}
+.stat-box {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:10px; padding:8px; text-align:center;
+}
+.stat-val { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:20px; }
+.stat-lbl { font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:0.5px; margin-top:1px; }
+
+/* ── XP bar ── */
+.xp-wrap { flex-shrink:0; }
+.xp-label { display:flex; justify-content:space-between; font-size:12px;
+  color:var(--dim); margin-bottom:5px; }
+.xp-bar { height:6px; background:var(--surface2); border-radius:3px; overflow:hidden; }
+.xp-fill { height:100%; background:var(--accent); border-radius:3px;
+  transition:width 0.8s cubic-bezier(.4,0,.2,1); }
+
+/* ── Friends section ── */
+.friends-list { display:flex; flex-direction:column; gap:8px; }
+
+/* ── Empty state ── */
+.empty {
+  text-align:center; padding:40px 20px; color:var(--dim);
+  display:flex; flex-direction:column; align-items:center; gap:10px;
+}
+.empty-icon { font-size:42px; opacity:0.4; }
+.empty-text { font-size:14px; }
+
+/* ── Toast ── */
+#toast {
+  position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(80px);
+  background:var(--surface2); border:1px solid var(--border); border-radius:10px;
+  padding:10px 20px; font-size:14px; font-weight:500; z-index:999;
+  transition:transform 0.3s cubic-bezier(.4,0,.2,1); white-space:nowrap;
+  box-shadow:0 4px 20px rgba(0,0,0,0.5);
+}
+#toast.show { transform:translateX(-50%) translateY(0); }
+
+/* ── Skeleton loader ── */
+.skeleton {
+  background:linear-gradient(90deg,var(--surface) 25%,var(--surface2) 50%,var(--surface) 75%);
+  background-size:200% 100%; animation:shimmer 1.5s infinite; border-radius:8px;
+}
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+/* ── Profile modal ── */
+#profile-modal {
+  display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8);
+  z-index:200; align-items:flex-end; justify-content:center;
+}
+#profile-modal.show { display:flex; }
+.profile-sheet {
+  background:var(--surface); width:100%; max-width:480px;
+  border-radius:20px 20px 0 0; padding:20px; max-height:85vh; overflow-y:auto;
+  animation:slideUp 0.3s cubic-bezier(.4,0,.2,1);
+}
+@keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+.sheet-handle { width:36px; height:4px; background:var(--border);
+  border-radius:2px; margin:0 auto 16px; }
+.sheet-header { display:flex; gap:14px; align-items:center; margin-bottom:16px; }
+.sheet-avatar { width:70px; height:70px; border-radius:50%; background:var(--surface2);
+  display:flex; align-items:center; justify-content:center; font-size:32px;
+  border:3px solid var(--accent); flex-shrink:0; overflow:hidden; }
+.sheet-avatar img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
+.sheet-name { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:24px; }
+.sheet-username { color:var(--accent); font-size:14px; margin-top:2px; }
+.sheet-stats { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:8px; margin:12px 0; }
+.sheet-stat { background:var(--surface2); border-radius:10px; padding:10px; text-align:center; }
+.sheet-stat-val { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:18px; }
+.sheet-stat-lbl { font-size:10px; color:var(--dim); text-transform:uppercase; }
+.sheet-actions { display:flex; gap:8px; margin-top:14px; }
+.sheet-btn {
+  flex:1; padding:11px; border-radius:10px; font-family:'Rajdhani',sans-serif;
+  font-weight:700; font-size:15px; cursor:pointer; border:1px solid var(--border);
+  background:var(--surface2); color:var(--text); transition:all 0.15s;
+}
+.sheet-btn:hover { background:var(--accent); border-color:var(--accent); }
+.sheet-btn.primary { background:var(--accent); border-color:var(--accent); }
+.sheet-btn:active { transform:scale(0.97); }
+
+/* Rank color helpers */
+.col-gold   { color:var(--gold)!important; }
+.col-silver { color:var(--silver)!important; }
+.col-bronze { color:var(--bronze)!important; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Tab bar -->
+  <div id="tabbar">
+    <div class="tab active" onclick="switchTab('profile')" id="tab-profile">
+      <span class="tab-icon">👤</span>Profile
+    </div>
+    <div class="tab" onclick="switchTab('search')" id="tab-search">
+      <span class="tab-icon">🔍</span>Search
+    </div>
+    <div class="tab" onclick="switchTab('ranking')" id="tab-ranking">
+      <span class="tab-icon">🏆</span>Ranking
+    </div>
+    <div class="tab" onclick="switchTab('friends')" id="tab-friends">
+      <span class="tab-icon">👥</span>Friends
+    </div>
+  </div>
+
+  <!-- ── PROFILE PAGE ── -->
+  <div class="page active" id="page-profile">
+    <div class="my-profile" id="my-profile-card">
+      <div class="my-avatar" id="my-avatar">♟</div>
+      <div class="my-info">
+        <div class="my-name" id="my-name">Loading…</div>
+        <div class="my-username" id="my-username">@username</div>
+        <div class="my-badges">
+          <span class="badge badge-elo" id="my-elo">— ELO</span>
+          <span class="badge badge-lvl" id="my-level">Lv.—</span>
+        </div>
+      </div>
+    </div>
+    <div class="my-stats">
+      <div class="stat-box"><div class="stat-val col-gold" id="my-wins">—</div><div class="stat-lbl">Wins</div></div>
+      <div class="stat-box"><div class="stat-val" style="color:var(--red)" id="my-losses">—</div><div class="stat-lbl">Losses</div></div>
+      <div class="stat-box"><div class="stat-val" style="color:var(--dim)" id="my-draws">—</div><div class="stat-lbl">Draws</div></div>
+    </div>
+    <div class="xp-wrap">
+      <div class="xp-label">
+        <span id="xp-label-left">XP Progress</span>
+        <span id="xp-label-right">0 / 500</span>
+      </div>
+      <div class="xp-bar"><div class="xp-fill" id="xp-fill" style="width:0%"></div></div>
+    </div>
+    <div class="sec-head">Recent Opponents</div>
+    <div id="recent-list" style="display:flex;flex-direction:column;gap:8px">
+      <div class="empty"><div class="empty-icon">♙</div><div class="empty-text">No games played yet</div></div>
+    </div>
+  </div>
+
+  <!-- ── SEARCH PAGE ── -->
+  <div class="page" id="page-search">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input class="search-input" id="search-input" placeholder="Search by @username or name…"
+        oninput="onSearch(this.value)" autocomplete="off" autocorrect="off" spellcheck="false"/>
+      <button class="search-clear" id="search-clear" onclick="clearSearch()">✕</button>
+    </div>
+    <div id="search-results" style="display:flex;flex-direction:column;gap:8px">
+      <div class="empty">
+        <div class="empty-icon">🔍</div>
+        <div class="empty-text">Type a username to find players</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── RANKING PAGE ── -->
+  <div class="page" id="page-ranking">
+    <div class="podium" id="podium"></div>
+    <div class="sec-head">Full Rankings</div>
+    <div id="ranking-list" style="display:flex;flex-direction:column;gap:8px"></div>
+  </div>
+
+  <!-- ── FRIENDS PAGE ── -->
+  <div class="page" id="page-friends">
+    <div class="search-wrap">
+      <span class="search-icon">➕</span>
+      <input class="search-input" id="add-input" placeholder="Add friend by @username…"
+        autocomplete="off" autocorrect="off" spellcheck="false"
+        onkeydown="if(event.key==='Enter')addFriend(this.value)"/>
+      <button class="action-btn" onclick="addFriend(document.getElementById('add-input').value)"
+        style="position:absolute;right:6px;top:50%;transform:translateY(-50%);padding:5px 12px">Add</button>
+    </div>
+    <div class="sec-head">Your Friends</div>
+    <div id="friends-list" class="friends-list"></div>
+  </div>
+
+</div>
+
+<!-- Profile modal -->
+<div id="profile-modal" onclick="closeProfile(event)">
+  <div class="profile-sheet" id="profile-sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <div class="sheet-avatar" id="sh-avatar">♟</div>
+      <div>
+        <div class="sheet-name"    id="sh-name">—</div>
+        <div class="sheet-username" id="sh-username">—</div>
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <span class="badge badge-elo" id="sh-elo">—</span>
+          <span class="badge badge-lvl" id="sh-lvl">—</span>
+        </div>
+      </div>
+    </div>
+    <div class="sheet-stats">
+      <div class="sheet-stat"><div class="sheet-stat-val col-gold"   id="sh-wins">—</div><div class="sheet-stat-lbl">Wins</div></div>
+      <div class="sheet-stat"><div class="sheet-stat-val" style="color:var(--red)" id="sh-losses">—</div><div class="sheet-stat-lbl">Losses</div></div>
+      <div class="sheet-stat"><div class="sheet-stat-val" style="color:var(--dim)" id="sh-draws">—</div><div class="sheet-stat-lbl">Draws</div></div>
+      <div class="sheet-stat"><div class="sheet-stat-val" id="sh-games">—</div><div class="sheet-stat-lbl">Games</div></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="sheet-btn" id="sh-add-btn"       onclick="sheetAdd()">➕ Add Friend</button>
+      <button class="sheet-btn primary" id="sh-challenge-btn" onclick="sheetChallenge()">⚔️ Challenge</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ── Telegram ───────────────────────────────────────────────────────────────
+const tg = window.Telegram?.WebApp;
+if (tg) { tg.ready(); tg.expand(); tg.setHeaderColor('#161616'); tg.setBackgroundColor('#161616'); }
+
+const params     = new URLSearchParams(window.location.search);
+const MY_ID      = parseInt(params.get('uid') || '0');
+const API_BASE   = params.get('api') || '';   // your bot's API endpoint
+const tgUser     = tg?.initDataUnsafe?.user;
+
+// ── Mock data (replace with real API calls) ────────────────────────────────
+const MOCK_ME = {
+  telegram_id: MY_ID || 123,
+  name: tgUser?.first_name || params.get('name') || 'You',
+  username: tgUser?.username || params.get('uname') || 'you',
+  elo: parseInt(params.get('elo') || '1240'),
+  level: parseInt(params.get('level') || '3'),
+  xp: parseInt(params.get('xp') || '210'),
+  wins: parseInt(params.get('wins') || '14'),
+  losses: parseInt(params.get('losses') || '8'),
+  draws: parseInt(params.get('draws') || '3'),
+  photo: tgUser?.photo_url || null,
+};
+
+const MOCK_PLAYERS = [
+  { telegram_id:1, name:'Magnus C.',   username:'magnusc',   elo:2847, level:50, xp:480, wins:312, losses:24,  draws:67, online:true  },
+  { telegram_id:2, name:'Hikaru N.',   username:'hikarunaka', elo:2760, level:44, xp:320, wins:287, losses:31,  draws:52, online:false },
+  { telegram_id:3, name:'Fabiano C.',  username:'fabcaruana', elo:2720, level:41, xp:150, wins:254, losses:40,  draws:71, online:true  },
+  { telegram_id:4, name:'Ding Liren',  username:'dingliren',  elo:2680, level:38, xp:90,  wins:210, losses:55,  draws:60, online:false },
+  { telegram_id:5, name:'Anish Giri',  username:'anishgiri',  elo:2650, level:35, xp:400, wins:195, losses:62,  draws:80, online:true  },
+  { telegram_id:6, name:'Ian Nepo',    username:'iannepo',    elo:2620, level:32, xp:200, wins:178, losses:70,  draws:45, online:false },
+  { telegram_id:7, name:'Alireza F.',  username:'alirezaf',   elo:2590, level:29, xp:330, wins:160, losses:85,  draws:30, online:true  },
+  { telegram_id:8, name:'Wesley So',   username:'wesleyso',   elo:2560, level:27, xp:440, wins:145, losses:90,  draws:55, online:false },
+  { telegram_id:9, name:'Levon A.',    username:'levona',     elo:2530, level:24, xp:270, wins:130, losses:100, draws:40, online:true  },
+  { telegram_id:10,name:'Shakhriyar', username:'shakh',      elo:2500, level:22, xp:380, wins:115, losses:110, draws:35, online:false },
+];
+
+let friends = JSON.parse(localStorage.getItem('friends') || '[]');
+let activePlayer = null;
+
+// ── Rank emoji ─────────────────────────────────────────────────────────────
+function rankEmoji(elo) {
+  if (elo>=2000) return '👑';
+  if (elo>=1800) return '💎';
+  if (elo>=1600) return '🥇';
+  if (elo>=1400) return '🥈';
+  if (elo>=1200) return '🥉';
+  return '🔰';
+}
+function rankClass(i) {
+  return ['rank-1','rank-2','rank-3'][i] || 'rank-other';
+}
+function rankLabel(i) {
+  return ['🥇','🥈','🥉'][i] || `#${i+1}`;
+}
+
+// ── Avatar helper ──────────────────────────────────────────────────────────
+function avatarHTML(p, size=46) {
+  if (p.photo) return `<img src="${p.photo}" alt="${p.name}" onerror="this.style.display='none'">`;
+  const initials = p.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  return `<span style="font-size:${size*0.35}px;font-family:'Rajdhani',sans-serif;font-weight:700">${initials}</span>`;
+}
+
+// ── Tab switching ──────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  document.getElementById('page-'+tab).classList.add('active');
+  if (tab === 'ranking') renderRanking();
+  if (tab === 'friends') renderFriends();
+}
+
+// ── Profile page ───────────────────────────────────────────────────────────
+function loadProfile() {
+  const p = MOCK_ME;
+  document.getElementById('my-name').textContent = p.name;
+  document.getElementById('my-username').textContent = '@' + p.username;
+  document.getElementById('my-elo').textContent = rankEmoji(p.elo) + ' ' + p.elo + ' ELO';
+  document.getElementById('my-level').textContent = 'Lv.' + p.level;
+  document.getElementById('my-wins').textContent   = p.wins;
+  document.getElementById('my-losses').textContent = p.losses;
+  document.getElementById('my-draws').textContent  = p.draws;
+  if (p.photo) {
+    document.getElementById('my-avatar').innerHTML = `<img src="${p.photo}">`;
+  } else {
+    const initials = p.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    document.getElementById('my-avatar').textContent = initials;
+  }
+  // XP bar
+  const xpIn  = p.xp % 500;
+  const pct   = (xpIn / 500 * 100).toFixed(1);
+  document.getElementById('xp-fill').style.width = pct + '%';
+  document.getElementById('xp-label-left').textContent = `Level ${p.level} → ${p.level+1}`;
+  document.getElementById('xp-label-right').textContent = `${xpIn} / 500 XP`;
+}
+
+// ── Search ─────────────────────────────────────────────────────────────────
+let searchTimeout = null;
+function onSearch(val) {
+  document.getElementById('search-clear').classList.toggle('show', val.length > 0);
+  clearTimeout(searchTimeout);
+  if (!val.trim()) {
+    document.getElementById('search-results').innerHTML = `
+      <div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">Type a username to find players</div></div>`;
+    return;
+  }
+  searchTimeout = setTimeout(() => doSearch(val.trim().replace(/^@/,'')), 300);
+}
+
+function doSearch(q) {
+  const res = document.getElementById('search-results');
+  res.innerHTML = `<div class="empty"><div class="empty-icon skeleton" style="width:40px;height:40px;border-radius:50%"></div><div class="empty-text" style="color:var(--dim)">Searching…</div></div>`;
+
+  // Simulate API delay
+  setTimeout(() => {
+    const results = MOCK_PLAYERS.filter(p =>
+      p.username.toLowerCase().includes(q.toLowerCase()) ||
+      p.name.toLowerCase().includes(q.toLowerCase())
+    );
+    if (!results.length) {
+      res.innerHTML = `<div class="empty"><div class="empty-icon">😕</div><div class="empty-text">No players found for "${q}"</div></div>`;
+      return;
+    }
+    res.innerHTML = '';
+    results.forEach((p,i) => res.appendChild(buildPlayerCard(p, i, 'search')));
+  }, 400);
+}
+
+function clearSearch() {
+  document.getElementById('search-input').value = '';
+  document.getElementById('search-clear').classList.remove('show');
+  document.getElementById('search-results').innerHTML = `
+    <div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">Type a username to find players</div></div>`;
+}
+
+// ── Ranking ────────────────────────────────────────────────────────────────
+function renderRanking() {
+  const sorted = [...MOCK_PLAYERS].sort((a,b) => b.elo - a.elo);
+  // Podium
+  const podium = document.getElementById('podium');
+  const order  = [sorted[1], sorted[0], sorted[2]]; // 2nd, 1st, 3rd
+  const barH   = ['50px','70px','40px'];
+  const crowns = ['🥈','🥇','🥉'];
+  podium.innerHTML = '';
+  order.forEach((p,i) => {
+    const realRank = [1,0,2][i];
+    const slot = document.createElement('div');
+    slot.className = 'podium-slot';
+    slot.onclick = () => openProfile(p);
+    slot.innerHTML = `
+      <div class="podium-crown">${crowns[i]}</div>
+      <div class="podium-avatar">${avatarHTML(p,56)}</div>
+      <div class="podium-name">${p.name.split(' ')[0]}</div>
+      <div class="podium-elo">${p.elo}</div>
+      <div class="podium-bar" style="height:${barH[i]}">#${realRank+1}</div>`;
+    podium.appendChild(slot);
+  });
+
+  // List (4th onward)
+  const list = document.getElementById('ranking-list');
+  list.innerHTML = '';
+  sorted.forEach((p,i) => list.appendChild(buildPlayerCard(p, i, 'rank')));
+}
+
+// ── Friends ────────────────────────────────────────────────────────────────
+function renderFriends() {
+  const list = document.getElementById('friends-list');
+  if (!friends.length) {
+    list.innerHTML = `<div class="empty"><div class="empty-icon">👥</div><div class="empty-text">No friends yet — search by @username to add!</div></div>`;
+    return;
+  }
+  list.innerHTML = '';
+  friends.forEach((p,i) => list.appendChild(buildPlayerCard(p, i, 'friend')));
+}
+
+function addFriend(username) {
+  const u = username.trim().replace(/^@/,'');
+  if (!u) { toast('Enter a username first'); return; }
+  const found = MOCK_PLAYERS.find(p => p.username.toLowerCase() === u.toLowerCase());
+  if (!found) { toast(`@${u} not found`); return; }
+  if (friends.find(f => f.telegram_id === found.telegram_id)) {
+    toast(`@${u} is already your friend`); return;
+  }
+  friends.push(found);
+  localStorage.setItem('friends', JSON.stringify(friends));
+  document.getElementById('add-input').value = '';
+  renderFriends();
+  toast(`✅ ${found.name} added as friend!`);
+  // Notify bot
+  if (tg) tg.sendData(JSON.stringify({ type:'add_friend', username: u }));
+}
+
+function removeFriend(id) {
+  friends = friends.filter(f => f.telegram_id !== id);
+  localStorage.setItem('friends', JSON.stringify(friends));
+  renderFriends();
+  toast('Friend removed');
+}
+
+// ── Player card builder ────────────────────────────────────────────────────
+function buildPlayerCard(p, i, mode) {
+  const card = document.createElement('div');
+  card.className = `pcard ${rankClass(i)}`;
+
+  const isFriend   = friends.some(f => f.telegram_id === p.telegram_id);
+  const total      = p.wins + p.losses + p.draws;
+  const wr         = total ? Math.round(p.wins/total*100) : 0;
+
+  const actions = mode === 'friend'
+    ? `<div class="pcard-actions">
+        <button class="action-btn challenge" onclick="event.stopPropagation();challengePlayer('${p.username}')">⚔️</button>
+        <button class="action-btn" style="color:var(--red);border-color:var(--red)" onclick="event.stopPropagation();removeFriend(${p.telegram_id})">✕</button>
+       </div>`
+    : `<div class="pcard-actions">
+        <button class="action-btn ${isFriend?'added':''}" onclick="event.stopPropagation();toggleFriend(${p.telegram_id},'${p.username}')">
+          ${isFriend ? '✓ Friend' : '➕'}
+        </button>
+       </div>`;
+
+  card.innerHTML = `
+    <div class="rank-badge">${rankLabel(i)}</div>
+    <div class="avatar" style="position:relative">
+      ${avatarHTML(p)}
+      ${p.online ? '<div class="avatar-online"></div>' : ''}
+    </div>
+    <div class="pcard-info">
+      <div class="pcard-name">${p.name}</div>
+      <div class="pcard-sub">
+        <span class="pcard-username">@${p.username}</span>
+        <span>${p.online ? '🟢 Online' : '⚫ Offline'}</span>
+      </div>
+      <div class="pcard-stats">
+        <span class="badge badge-elo">${rankEmoji(p.elo)} ${p.elo}</span>
+        <span class="badge badge-lvl">Lv.${p.level}</span>
+        <span class="badge badge-wins">${wr}% WR</span>
+      </div>
+    </div>
+    ${actions}`;
+
+  card.addEventListener('click', () => openProfile(p));
+  return card;
+}
+
+// ── Toggle friend ──────────────────────────────────────────────────────────
+function toggleFriend(id, username) {
+  const p = MOCK_PLAYERS.find(p => p.telegram_id === id);
+  if (!p) return;
+  if (friends.some(f => f.telegram_id === id)) {
+    friends = friends.filter(f => f.telegram_id !== id);
+    toast('Friend removed');
+  } else {
+    friends.push(p);
+    toast(`✅ ${p.name} added as friend!`);
+    if (tg) tg.sendData(JSON.stringify({ type:'add_friend', username }));
+  }
+  localStorage.setItem('friends', JSON.stringify(friends));
+  // Re-render current page
+  const active = document.querySelector('.page.active').id;
+  if (active === 'page-friends') renderFriends();
+  if (active === 'page-ranking') renderRanking();
+}
+
+// ── Challenge ──────────────────────────────────────────────────────────────
+function challengePlayer(username) {
+  if (tg) tg.sendData(JSON.stringify({ type:'challenge', username }));
+  toast(`⚔️ Challenge sent to @${username}!`);
+  setTimeout(() => tg?.close(), 1200);
+}
+
+// ── Profile modal ──────────────────────────────────────────────────────────
+function openProfile(p) {
+  activePlayer = p;
+  document.getElementById('sh-name').textContent     = p.name;
+  document.getElementById('sh-username').textContent = '@' + p.username;
+  document.getElementById('sh-elo').textContent      = rankEmoji(p.elo) + ' ' + p.elo + ' ELO';
+  document.getElementById('sh-lvl').textContent      = 'Lv.' + p.level;
+  document.getElementById('sh-wins').textContent     = p.wins;
+  document.getElementById('sh-losses').textContent   = p.losses;
+  document.getElementById('sh-draws').textContent    = p.draws;
+  document.getElementById('sh-games').textContent    = p.wins+p.losses+p.draws;
+  document.getElementById('sh-avatar').innerHTML     = avatarHTML(p, 70);
+  const isFriend = friends.some(f => f.telegram_id === p.telegram_id);
+  document.getElementById('sh-add-btn').textContent  = isFriend ? '✓ Friend' : '➕ Add Friend';
+  document.getElementById('profile-modal').classList.add('show');
+}
+function closeProfile(e) {
+  if (e.target === document.getElementById('profile-modal'))
+    document.getElementById('profile-modal').classList.remove('show');
+}
+function sheetAdd() {
+  if (activePlayer) toggleFriend(activePlayer.telegram_id, activePlayer.username);
+  document.getElementById('profile-modal').classList.remove('show');
+}
+function sheetChallenge() {
+  if (activePlayer) challengePlayer(activePlayer.username);
+  document.getElementById('profile-modal').classList.remove('show');
+}
+
+// ── Toast ──────────────────────────────────────────────────────────────────
+let toastTimer = null;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+loadProfile();
+</script>
+</body>
+</html>
