@@ -112,16 +112,14 @@ html,body{height:100%;background:#1a1a1a;color:#f0f0f0;font-family:'DM Sans',san
   <div style="display:flex" id="promo-opts"></div>
 </div>
 
-<!-- Waiting for friend -->
-<div id="waiting">
-  <div style="font-size:48px">👥</div>
-  <div class="w-title">Invite Your Friend</div>
-  <div class="spinner" id="conn-spinner"></div>
-  <div class="w-sub" id="wait-sub">Creating game room…</div>
-  <div class="link-box" id="inv-link" onclick="copyLink()" style="display:none">Generating link…</div>
-  <button class="copy-btn" id="copy-btn" onclick="copyLink()" style="display:none">📋 Copy Link</button>
-  <button class="share-btn" id="share-btn" onclick="shareLink()" style="display:none">📨 Send via Telegram</button>
-  <button class="btn" onclick="goHome()" style="margin-top:8px;width:100%;max-width:340px">← Back</button>
+<!-- Invite banner (shown at top when hosting) -->
+<div id="inv-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:50;background:#1a2d1a;border-bottom:1px solid rgba(76,175,138,.3);padding:10px 14px">
+  <div style="font-size:12px;color:#4caf9a;font-weight:600;margin-bottom:6px">⏳ Waiting for friend — share this link:</div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <div id="inv-link-txt" style="flex:1;font-size:11px;color:#aaa;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:#111;border-radius:6px;padding:6px 8px"></div>
+    <button onclick="copyInvLink()" style="background:#2d4a2d;border:1px solid rgba(76,175,138,.3);color:#4caf9a;border-radius:6px;padding:6px 10px;font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0">Copy</button>
+    <button onclick="shareInvLink()" style="background:linear-gradient(135deg,#1a5c40,#1e8060);border:none;color:#d0ffe8;border-radius:6px;padding:6px 10px;font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0">Share</button>
+  </div>
 </div>
 
 <script>
@@ -168,6 +166,52 @@ function setBoardSize(){
   board.style.height = sz+'px';
 }
 window.addEventListener('resize', setBoardSize);
+
+// ── Sound ─────────────────────────────────────────────────────────────────────
+const AC = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+function getAC(){ if(!audioCtx && AC) audioCtx = new AC(); return audioCtx; }
+
+function playSound(type){
+  try{
+    const ctx = getAC(); if(!ctx) return;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    if(type==='move'){
+      o.frequency.setValueAtTime(520, ctx.currentTime);
+      o.frequency.exponentialRampToValueAtTime(440, ctx.currentTime+0.08);
+      g.gain.setValueAtTime(0.15, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.12);
+      o.start(); o.stop(ctx.currentTime+0.12);
+    } else if(type==='capture'){
+      o.type='sawtooth';
+      o.frequency.setValueAtTime(300, ctx.currentTime);
+      o.frequency.exponentialRampToValueAtTime(120, ctx.currentTime+0.15);
+      g.gain.setValueAtTime(0.18, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.18);
+      o.start(); o.stop(ctx.currentTime+0.18);
+    } else if(type==='check'){
+      [440,550,660].forEach((f,i)=>{
+        const o2=ctx.createOscillator(), g2=ctx.createGain();
+        o2.connect(g2); g2.connect(ctx.destination);
+        o2.frequency.value=f;
+        g2.gain.setValueAtTime(0.12,ctx.currentTime+i*0.07);
+        g2.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+i*0.07+0.1);
+        o2.start(ctx.currentTime+i*0.07); o2.stop(ctx.currentTime+i*0.07+0.1);
+      });
+    } else if(type==='end'){
+      [523,659,784,1047].forEach((f,i)=>{
+        const o2=ctx.createOscillator(), g2=ctx.createGain();
+        o2.connect(g2); g2.connect(ctx.destination);
+        o2.frequency.value=f;
+        g2.gain.setValueAtTime(0.1,ctx.currentTime+i*0.12);
+        g2.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+i*0.12+0.15);
+        o2.start(ctx.currentTime+i*0.12); o2.stop(ctx.currentTime+i*0.12+0.15);
+      });
+    }
+  }catch(e){}
+}
 
 function buildBoard(){
   setBoardSize();
@@ -242,6 +286,10 @@ function apply(from,to,promo){
   const r=game.move(obj);
   if(!r) return;
   lastF=from; lastT=to; selSq=null; legal=[];
+  // Sound
+  if(r.captured) playSound('capture');
+  else playSound('move');
+  if(game.in_check()) setTimeout(()=>playSound('check'),150);
   draw(); updateMoves(); tickTimer(); updateStatus(); checkEnd();
   // Send to opponent in P2P mode
   if((MODE==='host'||MODE==='guest')&&conn){
@@ -310,6 +358,7 @@ function checkEnd(){
   else if(game.insufficient_material()){ico='🤝';title='Draw';sub='Insufficient material';}
   else if(game.in_threefold_repetition()){ico='🤝';title='Draw';sub='Repetition';}
   else{ico='🤝';title='Draw';sub='';}
+  playSound('end');
   setTimeout(()=>{ $('end-ico').textContent=ico; $('end-title').textContent=title; $('end-sub').textContent=sub; $('ov-end').classList.add('on'); },500);
 }
 
@@ -382,8 +431,8 @@ function initHost(){
     peer.on('connection', c=>{
       conn=c;
       conn.on('open',()=>{
-        $('waiting').classList.remove('on');
-        buildBoard(); updateStatus();
+        hideInviteBanner();
+        updateStatus();
         setStatus('✅ Friend connected! Your turn');
       });
       conn.on('data', d=>{
@@ -439,6 +488,30 @@ function shareLink(){
   else copyLink();
 }
 
+// ── Invite banner ────────────────────────────────────────────────────────────
+let _invLink = '';
+function showInviteBanner(){
+  const roomId = ROOM || P.get('room') || '';
+  _invLink = 'https://t.me/Chess01Bot?start=join_' + roomId;
+  document.getElementById('inv-link-txt').textContent = _invLink;
+  document.getElementById('inv-banner').style.display = 'block';
+  document.getElementById('app').style.paddingTop = '72px';
+}
+function hideInviteBanner(){
+  document.getElementById('inv-banner').style.display = 'none';
+  document.getElementById('app').style.paddingTop = '0';
+}
+function copyInvLink(){
+  navigator.clipboard?.writeText(_invLink).then(()=>{
+    const btn = event.target; btn.textContent='✅'; setTimeout(()=>btn.textContent='Copy',1500);
+  });
+}
+function shareInvLink(){
+  const url='https://t.me/share/url?url='+encodeURIComponent(_invLink)+'&text='+encodeURIComponent('♟️ Play chess with me on Chess01!');
+  if(tg&&tg.openTelegramLink) tg.openTelegramLink(url);
+  else window.open(url,'_blank');
+}
+
 // ── Actions ──────────────────────────────────────────────────────────────────
 function resign(){
   if(over) return;
@@ -450,11 +523,15 @@ function goHome(){ location.href=location.origin+location.pathname.replace('ches
 
 // ── Start ────────────────────────────────────────────────────────────────────
 if(MODE==='host'){
+  buildBoard();
+  setStatus('⏳ Waiting for friend to join…');
+  showInviteBanner();
   initHost();
 } else if(MODE==='guest'){
+  buildBoard();
+  setStatus('🔗 Connecting to host…');
   initGuest();
 } else {
-  // Bot game
   buildBoard();
   setStatus('✅ Your turn');
   if(myColor==='black'){ botBusy=true; setTimeout(runBot,800); }
