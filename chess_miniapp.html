@@ -32,7 +32,7 @@ html,body{height:100%;background:#1a1a1a;color:#f0f0f0;font-family:'DM Sans',san
 .sq{display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer}
 .sq.l{background:#f0d9b5}.sq.d{background:#b58863}
 .sq.sel{background:rgba(205,210,106,.85)!important}
-.sq.lf,.sq.lt{background:rgba(205,210,106,.45)!important}
+/* last move highlight removed */
 .sq.leg::after{content:'';position:absolute;width:32%;height:32%;border-radius:50%;background:rgba(0,0,0,.18);pointer-events:none}
 .sq.leg.occ::after{display:none}
 .sq.leg.occ{outline:3px solid rgba(0,0,0,.22);outline-offset:-3px}
@@ -149,8 +149,27 @@ let peer=null, conn=null;   // PeerJS
 // ── DOM refs ─────────────────────────────────────────────────────────────────
 const $=id=>document.getElementById(id);
 const board=$('board');
-$('my-name').textContent   = myNameP;
-$('my-elo').textContent    = myEloP+' ELO';
+// Language code → country flag mapping
+const LANG_FLAG = {
+  'ar':'🇸🇦','ar-sa':'🇸🇦','ar-ma':'🇲🇦','ar-dz':'🇩🇿','ar-tn':'🇹🇳',
+  'ar-eg':'🇪🇬','ar-iq':'🇮🇶','ar-jo':'🇯🇴','ar-lb':'🇱🇧','ar-ly':'🇱🇾',
+  'en':'🇺🇸','en-us':'🇺🇸','en-gb':'🇬🇧','en-au':'🇦🇺','en-ca':'🇨🇦',
+  'fr':'🇫🇷','fr-fr':'🇫🇷','fr-be':'🇧🇪','fr-ch':'🇨🇭','fr-ma':'🇲🇦',
+  'de':'🇩🇪','de-de':'🇩🇪','de-at':'🇦🇹','de-ch':'🇨🇭',
+  'es':'🇪🇸','es-es':'🇪🇸','es-mx':'🇲🇽','es-ar':'🇦🇷','es-co':'🇨🇴',
+  'it':'🇮🇹','ru':'🇷🇺','tr':'🇹🇷','pt':'🇵🇹','pt-br':'🇧🇷',
+  'nl':'🇳🇱','pl':'🇵🇱','uk':'🇺🇦','sv':'🇸🇪','no':'🇳🇴','da':'🇩🇰',
+  'fi':'🇫🇮','cs':'🇨🇿','ro':'🇷🇴','hu':'🇭🇺','el':'🇬🇷',
+  'zh':'🇨🇳','zh-cn':'🇨🇳','zh-tw':'🇹🇼','ja':'🇯🇵','ko':'🇰🇷',
+  'hi':'🇮🇳','bn':'🇧🇩','fa':'🇮🇷','he':'🇮🇱','id':'🇮🇩',
+  'ms':'🇲🇾','th':'🇹🇭','vi':'🇻🇳','tl':'🇵🇭',
+};
+const langCode  = (TGU?.language_code || '').toLowerCase();
+const myFlag    = LANG_FLAG[langCode] || LANG_FLAG[langCode.split('-')[0]] || '';
+const myDisplay = TGU ? (TGU.username ? '@'+TGU.username : myNameP) : myNameP;
+
+$('my-name').textContent   = myDisplay;
+$('my-elo').textContent    = myFlag || myEloP+' ELO';
 $('opp-name').textContent  = oppNameP;
 $('opp-elo').textContent   = oppEloP+' ELO';
 $('my-av').textContent     = myNameP.charAt(0).toUpperCase();
@@ -236,8 +255,7 @@ function draw(){
     const light=el.classList.contains('l');
     el.className='sq '+(light?'l':'d');
     if(sq===selSq)            el.classList.add('sel');
-    if(sq===lastF)            el.classList.add('lf');
-    if(sq===lastT)            el.classList.add('lt');
+    // no last-move highlight
     if(legal.includes(sq))  { el.classList.add('leg'); if(piece) el.classList.add('occ'); }
     if(game.in_check()){
       if(piece&&piece.type==='k'&&piece.color===game.turn()) el.classList.add('chksq');
@@ -440,11 +458,11 @@ function initHost(){
         if(m.type==='hello'){
           // Update opponent name with friend's real Telegram name
           const n = m.name || oppNameP;
-          $('opp-name').textContent = n;
-          $('opp-elo').textContent  = (m.elo||'1200')+' ELO';
+          const oppFlag2 = LANG_FLAG[(m.lang||'').toLowerCase()] || LANG_FLAG[(m.lang||'').split('-')[0]] || '';
+          $('opp-name').textContent = m.username ? '@'+m.username : n;
+          $('opp-elo').textContent  = oppFlag2 || (m.elo||'1200')+' ELO';
           $('opp-av').textContent   = n.charAt(0).toUpperCase();
-          // Send our identity back
-          try{ conn.send(JSON.stringify({type:'hello',name:myNameP,elo:myEloP})); }catch(e){}
+          try{ conn.send(JSON.stringify({type:'hello',name:myNameP,username:TGU?.username||'',lang:langCode,elo:myEloP})); }catch(e){}
           return;
         }
         apply(m.from,m.to,m.promo||null);
