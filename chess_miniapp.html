@@ -27,8 +27,8 @@ html,body{height:100%;background:#1a1a1a;color:#f0f0f0;font-family:'DM Sans',san
 .mn{color:#444;margin-right:2px}
 .mw,.mb{cursor:pointer;padding:1px 3px;border-radius:3px;transition:background .12s}
 .mw.cur,.mb.cur{background:#333;color:#f0f0f0;font-weight:600}
-#board-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:6px;min-height:0}
-#board{display:grid;grid-template-columns:repeat(8,1fr);width:100%;aspect-ratio:1;max-width:min(100%,calc(100vh - 280px));border-radius:6px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.7)}
+#board-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:6px;min-height:0;min-width:0}
+#board{display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);width:100%;height:100%;max-width:100%;border-radius:6px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.7)}
 .sq{display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer}
 .sq.l{background:#f0d9b5}.sq.d{background:#b58863}
 .sq.sel{background:rgba(205,210,106,.85)!important}
@@ -161,7 +161,16 @@ $('opp-av').textContent    = oppNameP.charAt(0).toUpperCase();
 function fmt(ms){ const s=Math.max(0,Math.ceil(ms/1000)); return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0'); }
 
 // ── Board ────────────────────────────────────────────────────────────────────
+function setBoardSize(){
+  const wrap = document.getElementById('board-wrap');
+  const sz = Math.min(wrap.clientWidth, wrap.clientHeight) - 12;
+  board.style.width = sz+'px';
+  board.style.height = sz+'px';
+}
+window.addEventListener('resize', setBoardSize);
+
 function buildBoard(){
+  setBoardSize();
   board.innerHTML='';
   for(let r=0;r<8;r++) for(let f=0;f<8;f++){
     const rank = myColor==='white' ? 8-r : r+1;
@@ -376,9 +385,22 @@ function initHost(){
       conn.on('open',()=>{
         $('waiting').classList.remove('on');
         buildBoard(); updateStatus();
-        setStatus('✅ Friend connected! Your turn (White)');
+        setStatus('✅ Friend connected! Your turn');
       });
-      conn.on('data', d=>{ const m=JSON.parse(d); apply(m.from,m.to,m.promo||null); });
+      conn.on('data', d=>{
+        const m=JSON.parse(d);
+        if(m.type==='hello'){
+          // Update opponent name with friend's real Telegram name
+          const n = m.name || oppNameP;
+          $('opp-name').textContent = n;
+          $('opp-elo').textContent  = (m.elo||'1200')+' ELO';
+          $('opp-av').textContent   = n.charAt(0).toUpperCase();
+          // Send our identity back
+          try{ conn.send(JSON.stringify({type:'hello',name:myNameP,elo:myEloP})); }catch(e){}
+          return;
+        }
+        apply(m.from,m.to,m.promo||null);
+      });
       conn.on('close',()=>{ if(!over) setStatus('⚠️ Friend disconnected'); });
     });
     peer.on('error', e=>{ $('wait-sub').textContent='Connection error. Try again.'; console.error(e); });

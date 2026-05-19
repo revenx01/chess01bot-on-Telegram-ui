@@ -8,86 +8,148 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;background:#111;color:#f0f0f0;font-family:'DM Sans',sans-serif}
-body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px 20px}
-.logo{font-size:64px;margin-bottom:4px;animation:float 3s ease-in-out infinite}
-@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
-h1{font-family:'Playfair Display',serif;font-weight:800;font-size:32px;margin-bottom:4px}
-.sub{font-size:14px;color:#666;margin-bottom:48px}
-.cards{display:flex;flex-direction:column;gap:14px;width:100%;max-width:320px}
-.card{border-radius:20px;padding:22px 24px;cursor:pointer;display:flex;align-items:center;gap:18px;border:1px solid transparent;transition:transform .15s;position:relative;overflow:hidden}
-.card:active{transform:scale(.96)}
-.card.bot{background:linear-gradient(135deg,#1a2d2a,#1a3530);border-color:rgba(76,175,138,.3)}
-.card.friend{background:linear-gradient(135deg,#2d2a1a,#40361a);border-color:rgba(212,168,67,.3)}
-.card-ico{font-size:42px;flex-shrink:0}
-.card-title{font-family:'Playfair Display',serif;font-weight:800;font-size:22px}
-.card-sub{font-size:13px;color:#888;margin-top:3px}
-.card-extra{display:none;margin-top:14px}
-.card.open .card-extra{display:block}
-.diff-row{display:flex;gap:8px}
-.diff{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;color:#aaa}
-.diff.sel{background:rgba(76,175,138,.2);border-color:rgba(76,175,138,.5);color:#4caf9a}
-.fr-inp{width:100%;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:10px 14px;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;margin-bottom:0}
-.fr-inp::placeholder{color:#555}
+html,body{height:100%;background:#0e0e0e;color:#f0f0f0;font-family:'DM Sans',sans-serif}
+body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:28px 20px;gap:0}
+
+/* BG glow */
+body::before{content:'';position:fixed;top:-120px;left:50%;transform:translateX(-50%);
+  width:500px;height:500px;border-radius:50%;
+  background:radial-gradient(circle,rgba(136,136,136,.07) 0%,transparent 70%);
+  pointer-events:none;z-index:0}
+
+/* header */
+.top{display:flex;flex-direction:column;align-items:center;margin-bottom:40px;position:relative;z-index:1}
+.piece{font-size:72px;line-height:1;margin-bottom:12px;filter:drop-shadow(0 0 24px rgba(255,255,255,.12));animation:float 4s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-10px) rotate(3deg)}}
+.title{font-family:'Playfair Display',serif;font-weight:800;font-size:36px;letter-spacing:-1px;background:linear-gradient(135deg,#fff 30%,#888);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.greet{font-size:14px;color:#555;margin-top:6px}
+
+/* cards */
+.cards{display:flex;flex-direction:column;gap:12px;width:100%;max-width:400px;position:relative;z-index:1}
+
+.card{border-radius:22px;border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.04);backdrop-filter:blur(10px);overflow:hidden;cursor:pointer;transition:transform .18s,border-color .2s,box-shadow .2s}
+.card:active{transform:scale(.97)}
+.card.open{border-color:rgba(255,255,255,.14);box-shadow:0 8px 40px rgba(0,0,0,.4)}
+
+/* card top row */
+.card-top{display:flex;align-items:center;gap:16px;padding:20px 20px 18px}
+.card-ava{width:58px;height:58px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:30px;flex-shrink:0}
+.card.bot  .card-ava{background:linear-gradient(135deg,#0d3327,#0a4a38)}
+.card.friend .card-ava{background:linear-gradient(135deg,#2d2208,#42320a)}
+.card-label{font-family:'Playfair Display',serif;font-weight:800;font-size:21px}
+.card-desc{font-size:13px;color:#666;margin-top:3px}
+.card-arrow{margin-left:auto;font-size:18px;color:#444;transition:transform .25s}
+.card.open .card-arrow{transform:rotate(90deg);color:#888}
+
+/* card body */
+.card-body{display:none;padding:0 20px 20px}
+.card.open .card-body{display:block}
+.divider{height:1px;background:rgba(255,255,255,.06);margin-bottom:18px}
+
+/* difficulty */
+.diff-label{font-size:11px;color:#555;text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px}
+.diff-row{display:flex;gap:8px;margin-bottom:18px}
+.diff{flex:1;text-align:center;padding:9px 2px;border-radius:12px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid rgba(255,255,255,.08);color:#666;background:rgba(255,255,255,.03);transition:all .18s;white-space:nowrap}
+.diff.sel{background:rgba(76,175,138,.15);border-color:rgba(76,175,138,.4);color:#4caf9a}
+.diff:active{transform:scale(.94)}
+
+/* friend input */
+.fr-label{font-size:11px;color:#555;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px}
+.fr-inp{width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:12px;padding:12px 14px;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;margin-bottom:18px;transition:border-color .2s}
 .fr-inp:focus{border-color:rgba(212,168,67,.5)}
-.go-btn{display:block;width:100%;background:#888;color:#fff;border:none;border-radius:14px;padding:14px;font-family:'Playfair Display',serif;font-weight:700;font-size:18px;cursor:pointer;margin-top:12px;transition:all .18s}
-.go-btn:active{transform:scale(.97)}
-.go-btn.gold{background:linear-gradient(135deg,#c9973a,#e0b84a);color:#fff}
-.hint{font-size:12px;color:#444;text-align:center;margin-top:32px;line-height:1.7}
+.fr-inp::placeholder{color:#444}
+
+/* go buttons */
+.go{width:100%;padding:15px;border:none;border-radius:14px;font-family:'Playfair Display',serif;font-weight:700;font-size:18px;cursor:pointer;transition:all .18s;letter-spacing:.3px}
+.go:active{transform:scale(.97);opacity:.9}
+.go.green{background:linear-gradient(135deg,#1a6b4a,#21916a);color:#e0fff4;box-shadow:0 4px 20px rgba(33,145,106,.25)}
+.go.gold {background:linear-gradient(135deg,#8a6010,#c8921a);color:#fff8e0;box-shadow:0 4px 20px rgba(200,146,26,.25)}
+
+.hint{font-size:12px;color:#333;text-align:center;margin-top:28px;line-height:1.8;position:relative;z-index:1}
 </style>
 </head>
 <body>
 
-<div class="logo">♟️</div>
-<h1>Chess01</h1>
-<p class="sub">Pick your game and play</p>
+<div class="top">
+  <div class="piece">♟️</div>
+  <div class="title">Chess01</div>
+  <div class="greet" id="greet">Welcome, Player</div>
+</div>
 
 <div class="cards">
 
+  <!-- BOT -->
   <div class="card bot" id="card-bot" onclick="toggle('bot')">
-    <div class="card-ico">🤖</div>
-    <div style="flex:1;min-width:0">
-      <div class="card-title">vs Bot</div>
-      <div class="card-sub">Play against the computer</div>
-      <div class="card-extra">
-        <div class="diff-row" style="margin-bottom:12px">
-          <div class="diff sel" data-d="1" onclick="pickDiff(event,this)">Easy</div>
-          <div class="diff"     data-d="2" onclick="pickDiff(event,this)">Medium</div>
-          <div class="diff"     data-d="3" onclick="pickDiff(event,this)">Hard</div>
-        </div>
-        <button class="go-btn" onclick="startBot(event)">▶ Play Now</button>
+    <div class="card-top">
+      <div class="card-ava">🤖</div>
+      <div>
+        <div class="card-label">vs Bot</div>
+        <div class="card-desc">Play against the computer</div>
       </div>
+      <div class="card-arrow">›</div>
+    </div>
+    <div class="card-body">
+      <div class="divider"></div>
+      <div class="diff-label">Difficulty</div>
+      <div class="diff-row">
+        <div class="diff sel" data-d="1" onclick="pickDiff(event,this)">Easy</div>
+        <div class="diff"     data-d="2" onclick="pickDiff(event,this)">Medium</div>
+        <div class="diff"     data-d="3" onclick="pickDiff(event,this)">Hard</div>
+      </div>
+      <button class="go green" onclick="startBot(event)">▶ Play Now</button>
     </div>
   </div>
 
+  <!-- FRIEND -->
   <div class="card friend" id="card-friend" onclick="toggle('friend')">
-    <div class="card-ico">👥</div>
-    <div style="flex:1;min-width:0">
-      <div class="card-title">vs Friend</div>
-      <div class="card-sub">Pass &amp; play on same device</div>
-      <div class="card-extra">
-        <input class="fr-inp" id="fr-name" placeholder="Friend's name (optional)" autocomplete="off" onclick="event.stopPropagation()"/>
-        <button class="go-btn gold" onclick="startFriend(event)">⚔️ Start Game</button>
+    <div class="card-top">
+      <div class="card-ava">👥</div>
+      <div>
+        <div class="card-label">vs Friend</div>
+        <div class="card-desc">Pass & play on same device</div>
+      </div>
+      <div class="card-arrow">›</div>
+    </div>
+    <div class="card-body">
+      <div class="divider"></div>
+      <div id="fr-state-init">
+        <p style="font-size:13px;color:#666;margin-bottom:14px;line-height:1.6">
+          Create a game room and share the invite link with your friend via Telegram.
+        </p>
+        <button class="go gold" onclick="createRoom(event)">🔗 Create Game Link</button>
+      </div>
+      <div id="fr-state-room" style="display:none">
+        <p style="font-size:12px;color:#555;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Invite link</p>
+        <div id="room-link-box" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:10px 12px;font-size:12px;color:#aaa;word-break:break-all;margin-bottom:12px;cursor:pointer" onclick="copyRoomLink(event)">…</div>
+        <button class="go gold" style="margin-bottom:8px" onclick="shareRoom(event)">📨 Send via Telegram</button>
+        <button class="go" style="background:rgba(255,255,255,.07);color:#aaa;font-size:15px;margin-bottom:8px" onclick="copyRoomLink(event)" id="copy-room-btn">📋 Copy Link</button>
+        <p style="font-size:12px;color:#555;text-align:center" id="wait-txt">⏳ Waiting for friend to join…</p>
       </div>
     </div>
   </div>
 
 </div>
 
-<p class="hint">Tap a card to expand,<br>then press Play.</p>
+<div class="hint">Tap a card to get started</div>
 
 <script>
 const tg=window.Telegram?.WebApp;
-if(tg){tg.ready();tg.expand();tg.setHeaderColor('#111');tg.setBackgroundColor('#111');}
+if(tg){tg.ready();tg.expand();tg.setHeaderColor('#0e0e0e');tg.setBackgroundColor('#0e0e0e');}
 const TGU=tg?.initDataUnsafe?.user;
 const ME={name:'Player',elo:1200,level:1};
-if(TGU) ME.name=(TGU.first_name||'')+(TGU.last_name?' '+TGU.last_name:'');
+if(TGU){
+  ME.name=(TGU.first_name||'')+(TGU.last_name?' '+TGU.last_name:'');
+}
+document.getElementById('greet').textContent='Welcome, '+ME.name.split(' ')[0]+'!';
 
-let openCard=null,selDiff=1;
+let openCard=null, selDiff=1;
 
 function toggle(id){
-  if(openCard===id){document.getElementById('card-'+id).classList.remove('open');openCard=null;return;}
-  if(openCard)document.getElementById('card-'+openCard).classList.remove('open');
+  if(openCard===id){
+    document.getElementById('card-'+id).classList.remove('open');
+    openCard=null; return;
+  }
+  if(openCard) document.getElementById('card-'+openCard).classList.remove('open');
   document.getElementById('card-'+id).classList.add('open');
   openCard=id;
 }
@@ -99,22 +161,28 @@ function pickDiff(e,el){
   selDiff=parseInt(el.dataset.d);
 }
 
-function base(){return location.origin+location.pathname.replace('index.html','').replace(/\/+$/,'/');}
+function base(){
+  return location.origin+location.pathname.replace('index.html','').replace(/\/+$/,'/');
+}
 
 function startBot(e){
   e.stopPropagation();
   const belo={1:'800',2:'1400',3:'2000'}[selDiff]||'1200';
-  location.href=base()+'chess_miniapp.html?color=white&timer=600&bot=1&bot_diff='+selDiff
+  location.href=base()+'chess_miniapp.html'
+    +'?color=white&timer=600&bot=1&bot_diff='+selDiff
     +'&opp_name=Chess+Bot&opp_elo='+belo+'&opp_level=1'
-    +'&my_name='+encodeURIComponent(ME.name)+'&my_elo='+ME.elo+'&my_level='+ME.level;
+    +'&my_name='+encodeURIComponent(ME.name)
+    +'&my_elo='+ME.elo+'&my_level='+ME.level;
 }
 
 function startFriend(e){
   e.stopPropagation();
   const fr=document.getElementById('fr-name').value.trim()||'Friend';
-  location.href=base()+'chess_miniapp.html?color=white&timer=600&bot=0&local2p=1'
+  location.href=base()+'chess_miniapp.html'
+    +'?color=white&timer=600&bot=0&local2p=1'
     +'&opp_name='+encodeURIComponent(fr)+'&opp_elo=1200&opp_level=1'
-    +'&my_name='+encodeURIComponent(ME.name)+'&my_elo='+ME.elo+'&my_level='+ME.level;
+    +'&my_name='+encodeURIComponent(ME.name)
+    +'&my_elo='+ME.elo+'&my_level='+ME.level;
 }
 </script>
 </body>
