@@ -48,6 +48,21 @@ html,body{height:100%;background:#1a1a1a;color:#f0f0f0;font-family:'DM Sans',san
 .pp{width:68px;height:68px;background:#2a2a2a;border-radius:12px;border:2px solid #444;display:flex;align-items:center;justify-content:center;cursor:pointer;margin:0 6px}
 .pp img{width:80%;height:80%;object-fit:contain}
 .pp:hover{border-color:#888}
+/* country picker */
+#cpick{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:300;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:14px}
+#cpick.on{display:flex}
+.cp-title{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;text-align:center}
+.cp-sub{font-size:13px;color:#666;text-align:center}
+.cp-search{width:100%;max-width:340px;background:#222;border:1px solid #3a3a3a;border-radius:10px;padding:10px 14px;color:#f0f0f0;font-size:14px;outline:none}
+.cp-search::placeholder{color:#444}
+.cp-list{width:100%;max-width:340px;max-height:50vh;overflow-y:auto;display:flex;flex-direction:column;gap:4px}
+.cp-list::-webkit-scrollbar{width:3px}
+.cp-list::-webkit-scrollbar-thumb{background:#333;border-radius:2px}
+.cp-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#222;border-radius:10px;cursor:pointer;transition:background .15s;border:1px solid transparent}
+.cp-item:hover{background:#2a2a2a;border-color:#3a3a3a}
+.cp-flag{font-size:22px;flex-shrink:0}
+.cp-name{font-size:14px;font-weight:500}
+.cp-code{font-size:12px;color:#555;margin-left:auto}
 /* invite banner */
 #inv-banner{display:none;position:fixed;top:0;left:0;right:0;z-index:50;background:#1a2d1a;border-bottom:1px solid rgba(76,175,138,.3);padding:10px 14px}
 #inv-banner .bl{font-size:12px;color:#4caf9a;font-weight:600;margin-bottom:6px}
@@ -106,29 +121,49 @@ html,body{height:100%;background:#1a1a1a;color:#f0f0f0;font-family:'DM Sans',san
   <div style="display:flex" id="promo-opts"></div>
 </div>
 
+<div id="cpick">
+  <div class="cp-title">🌍 Your Country</div>
+  <div class="cp-sub">Select once — shows as your flag to opponents</div>
+  <input class="cp-search" id="cp-search" placeholder="Search country…" oninput="filterCountries()" autocomplete="off"/>
+  <div class="cp-list" id="cp-list"></div>
+</div>
+
 <script>
 const tg  = window.Telegram?.WebApp;
 if(tg){ tg.ready(); tg.expand(); }
 const TGU = tg?.initDataUnsafe?.user;
 
-// ── Language → Flag ───────────────────────────────────────────────────────────
-const LANG_FLAG={
-  'ar':'🇸🇦','ar-sa':'🇸🇦','ar-ma':'🇲🇦','ar-dz':'🇩🇿','ar-tn':'🇹🇳','ar-eg':'🇪🇬',
-  'ar-iq':'🇮🇶','ar-jo':'🇯🇴','ar-lb':'🇱🇧','ar-ly':'🇱🇾','ar-ae':'🇦🇪','ar-kw':'🇰🇼',
-  'en':'🇺🇸','en-us':'🇺🇸','en-gb':'🇬🇧','en-au':'🇦🇺','en-ca':'🇨🇦','en-nz':'🇳🇿',
-  'fr':'🇫🇷','fr-fr':'🇫🇷','fr-be':'🇧🇪','fr-ch':'🇨🇭','fr-ma':'🇲🇦','fr-ca':'🇨🇦',
-  'de':'🇩🇪','de-at':'🇦🇹','de-ch':'🇨🇭','es':'🇪🇸','es-mx':'🇲🇽','es-ar':'🇦🇷',
-  'it':'🇮🇹','ru':'🇷🇺','tr':'🇹🇷','pt':'🇵🇹','pt-br':'🇧🇷','nl':'🇳🇱',
-  'pl':'🇵🇱','uk':'🇺🇦','sv':'🇸🇪','no':'🇳🇴','da':'🇩🇰','fi':'🇫🇮',
-  'cs':'🇨🇿','ro':'🇷🇴','hu':'🇭🇺','el':'🇬🇷','zh':'🇨🇳','zh-cn':'🇨🇳',
-  'zh-tw':'🇹🇼','ja':'🇯🇵','ko':'🇰🇷','hi':'🇮🇳','fa':'🇮🇷','he':'🇮🇱',
-  'id':'🇮🇩','ms':'🇲🇾','th':'🇹🇭','vi':'🇻🇳',
-};
-function getFlag(lang){
-  if(!lang) return '';
-  const l=lang.toLowerCase();
-  return LANG_FLAG[l]||LANG_FLAG[l.split('-')[0]]||'';
-}
+// ── Countries ────────────────────────────────────────────────────────────────
+const COUNTRIES=[
+  {flag:'🇲🇦',name:'Morocco',code:'MA'},{flag:'🇸🇦',name:'Saudi Arabia',code:'SA'},
+  {flag:'🇦🇪',name:'UAE',code:'AE'},{flag:'🇪🇬',name:'Egypt',code:'EG'},
+  {flag:'🇩🇿',name:'Algeria',code:'DZ'},{flag:'🇹🇳',name:'Tunisia',code:'TN'},
+  {flag:'🇱🇧',name:'Lebanon',code:'LB'},{flag:'🇮🇶',name:'Iraq',code:'IQ'},
+  {flag:'🇸🇾',name:'Syria',code:'SY'},{flag:'🇯🇴',name:'Jordan',code:'JO'},
+  {flag:'🇺🇸',name:'United States',code:'US'},{flag:'🇬🇧',name:'United Kingdom',code:'GB'},
+  {flag:'🇫🇷',name:'France',code:'FR'},{flag:'🇩🇪',name:'Germany',code:'DE'},
+  {flag:'🇪🇸',name:'Spain',code:'ES'},{flag:'🇮🇹',name:'Italy',code:'IT'},
+  {flag:'🇷🇺',name:'Russia',code:'RU'},{flag:'🇹🇷',name:'Turkey',code:'TR'},
+  {flag:'🇮🇳',name:'India',code:'IN'},{flag:'🇧🇷',name:'Brazil',code:'BR'},
+  {flag:'🇨🇳',name:'China',code:'CN'},{flag:'🇯🇵',name:'Japan',code:'JP'},
+  {flag:'🇰🇷',name:'South Korea',code:'KR'},{flag:'🇳🇱',name:'Netherlands',code:'NL'},
+  {flag:'🇵🇱',name:'Poland',code:'PL'},{flag:'🇺🇦',name:'Ukraine',code:'UA'},
+  {flag:'🇸🇪',name:'Sweden',code:'SE'},{flag:'🇳🇴',name:'Norway',code:'NO'},
+  {flag:'🇩🇰',name:'Denmark',code:'DK'},{flag:'🇵🇹',name:'Portugal',code:'PT'},
+  {flag:'🇦🇷',name:'Argentina',code:'AR'},{flag:'🇲🇽',name:'Mexico',code:'MX'},
+  {flag:'🇮🇷',name:'Iran',code:'IR'},{flag:'🇵🇰',name:'Pakistan',code:'PK'},
+  {flag:'🇧🇩',name:'Bangladesh',code:'BD'},{flag:'🇳🇬',name:'Nigeria',code:'NG'},
+  {flag:'🇿🇦',name:'South Africa',code:'ZA'},{flag:'🇮🇩',name:'Indonesia',code:'ID'},
+  {flag:'🇲🇾',name:'Malaysia',code:'MY'},{flag:'🇵🇭',name:'Philippines',code:'PH'},
+  {flag:'🇹🇭',name:'Thailand',code:'TH'},{flag:'🇻🇳',name:'Vietnam',code:'VN'},
+  {flag:'🇬🇷',name:'Greece',code:'GR'},{flag:'🇨🇿',name:'Czech Republic',code:'CZ'},
+  {flag:'🇷🇴',name:'Romania',code:'RO'},{flag:'🇭🇺',name:'Hungary',code:'HU'},
+  {flag:'🇮🇱',name:'Israel',code:'IL'},{flag:'🇨🇦',name:'Canada',code:'CA'},
+  {flag:'🇦🇺',name:'Australia',code:'AU'},{flag:'🇳🇿',name:'New Zealand',code:'NZ'},
+];
+const CKEY = 'chess01_country_' + (TGU?.id||'guest');
+let myCountry = JSON.parse(localStorage.getItem(CKEY)||'null');
+function getFlag(lang){ return ''; } // legacy - not used
 
 const P       = new URLSearchParams(location.search);
 const MODE    = P.get('mode')||'bot';
@@ -144,7 +179,7 @@ const FILES   = ['a','b','c','d','e','f','g','h'];
 
 // My display info from Telegram
 const myLang  = TGU?.language_code||'';
-const myFlag  = getFlag(myLang);
+const myFlag  = myCountry?.flag||'';
 const myRawName = TGU?(TGU.first_name+(TGU.last_name?' '+TGU.last_name:''))
                     :(P.get('my_name')?decodeURIComponent(P.get('my_name')):'You');
 const myDisplay = TGU?.username ? '@'+TGU.username : myRawName;
@@ -152,7 +187,7 @@ const myDisplay = TGU?.username ? '@'+TGU.username : myRawName;
 // Set player bars
 const $=id=>document.getElementById(id);
 $('my-name').textContent  = myDisplay;
-$('my-info').textContent  = myFlag||myEloP+' ELO';
+$('my-info').textContent  = myFlag||'🌍 Set country';
 $('my-av').textContent    = myRawName.charAt(0).toUpperCase();
 $('opp-name').textContent = oppNameP;
 $('opp-info').textContent = oppEloP+' ELO';
@@ -431,15 +466,14 @@ function initHost(roomId){
       conn=c;
       conn.on('open',()=>{
         hideBanner();
-        try{conn.send(JSON.stringify({type:'hello',name:myRawName,username:TGU?.username||'',lang:myLang,elo:myEloP}));}catch(e){}
+        try{conn.send(JSON.stringify({type:'hello',name:myRawName,username:TGU?.username||'',flag:myCountry?.flag||'',elo:myEloP}));}catch(e){}
         updateStatus();setStatus('✅ Friend connected! Your turn');
       });
       conn.on('data',d=>{
         const m=JSON.parse(d);
         if(m.type==='hello'){
           const n=m.username?'@'+m.username:(m.name||oppNameP);
-          const f=getFlag(m.lang||'');
-          $('opp-name').textContent=n;$('opp-info').textContent=f||oppEloP+' ELO';
+          $('opp-name').textContent=n;$('opp-info').textContent=m.flag||oppEloP+' ELO';
           $('opp-av').textContent=(m.name||'?').charAt(0).toUpperCase();
           return;
         }
@@ -458,15 +492,14 @@ function initGuest(roomId){
     peer.on('open',()=>{
       conn=peer.connect(roomId,{reliable:true});
       conn.on('open',()=>{
-        try{conn.send(JSON.stringify({type:'hello',name:myRawName,username:TGU?.username||'',lang:myLang,elo:myEloP}));}catch(e){}
+        try{conn.send(JSON.stringify({type:'hello',name:myRawName,username:TGU?.username||'',flag:myCountry?.flag||'',elo:myEloP}));}catch(e){}
         updateStatus();setStatus('✅ Connected! Waiting for White\'s move…');
       });
       conn.on('data',d=>{
         const m=JSON.parse(d);
         if(m.type==='hello'){
           const n=m.username?'@'+m.username:(m.name||oppNameP);
-          const f=getFlag(m.lang||'');
-          $('opp-name').textContent=n;$('opp-info').textContent=f||oppEloP+' ELO';
+          $('opp-name').textContent=n;$('opp-info').textContent=m.flag||oppEloP+' ELO';
           $('opp-av').textContent=(m.name||'?').charAt(0).toUpperCase();
           return;
         }
@@ -486,8 +519,40 @@ function resign(){
 }
 function goHome(){location.href=location.origin+location.pathname.replace('chess_miniapp.html','')+'index.html';}
 
+// ── Country Picker ───────────────────────────────────────────────────────────
+function openCountryPicker(){
+  renderCountries('');
+  document.getElementById('cpick').classList.add('on');
+  document.getElementById('cp-search').value='';
+  setTimeout(()=>document.getElementById('cp-search').focus(),100);
+}
+function filterCountries(){
+  renderCountries(document.getElementById('cp-search').value);
+}
+function renderCountries(q){
+  const list=document.getElementById('cp-list');
+  list.innerHTML='';
+  const filtered=q?COUNTRIES.filter(c=>c.name.toLowerCase().includes(q.toLowerCase())||c.code.toLowerCase().includes(q.toLowerCase())):COUNTRIES;
+  filtered.forEach(c=>{
+    const d=document.createElement('div');d.className='cp-item';
+    d.innerHTML=`<span class="cp-flag">${c.flag}</span><span class="cp-name">${c.name}</span><span class="cp-code">${c.code}</span>`;
+    d.onclick=()=>selectCountry(c);
+    list.appendChild(d);
+  });
+}
+function selectCountry(c){
+  myCountry=c;
+  localStorage.setItem(CKEY,JSON.stringify(c));
+  document.getElementById('cpick').classList.remove('on');
+  document.getElementById('my-info').textContent=c.flag;
+}
+// Make my-info clickable to change country
+document.getElementById('my-info').style.cursor='pointer';
+document.getElementById('my-info').onclick=openCountryPicker;
+
 // ── Start ────────────────────────────────────────────────────────────────────
 buildBoard();
+if(!myCountry) setTimeout(openCountryPicker,800);
 if(MODE==='host'){ initHost(ROOM); }
 else if(MODE==='guest'){ initGuest(ROOM); }
 else{
