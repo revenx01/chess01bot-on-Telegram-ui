@@ -368,10 +368,9 @@ function initHost(){
   try{
     peer = new Peer(roomId, {debug:0});
     peer.on('open', id=>{
-      const base = location.origin+location.pathname.replace('chess_miniapp.html','');
-      const link = base+'chess_miniapp.html?mode=guest&room='+id
-        +'&color=black&opp_name='+encodeURIComponent(myNameP)
-        +'&opp_elo='+myEloP+'&my_elo='+myEloP+'&timer='+timerSec;
+      // Use Telegram bot deep link so friend's username loads automatically
+      const roomCode = id.replace('chess01-','').replace('c01','');
+      const link = 'https://t.me/Chess01Bot?start=join_' + id;
       $('conn-spinner').style.display='none';
       $('wait-sub').textContent='Share this link with your friend:';
       $('inv-link').textContent=link;

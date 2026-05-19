@@ -94,6 +94,7 @@ body::before{content:'';position:fixed;top:-100px;left:50%;transform:translateX(
       <button class="go gold" id="gen-btn" onclick="genLink(event)">🔗 Generate Invite Link</button>
       <button class="go grey"  id="copy-btn" onclick="copyLink(event)" style="display:none">📋 Copy Link</button>
       <button class="go gold"  id="share-btn" onclick="shareLink(event)" style="display:none;margin-top:8px">📨 Send via Telegram</button>
+      <button class="go green" id="start-btn" onclick="startAsHost(event)" style="display:none;margin-top:8px">▶ Start Game (I'm ready)</button>
     </div>
   </div>
 
@@ -161,15 +162,9 @@ function genLink(e){
   document.getElementById('copy-btn').style.display = 'block';
   document.getElementById('share-btn').style.display = 'block';
 
-  // Go to game as host after short delay
-  setTimeout(() => {
-    location.href = pageBase() + 'chess_miniapp.html'
-      + '?mode=host&room=' + roomId
-      + '&color=white&timer=600'
-      + '&my_name=' + encodeURIComponent(myName)
-      + '&my_elo=' + myElo
-      + '&opp_name=Friend&opp_elo=1200';
-  }, 1500);
+  // Store room id for when user is ready
+  window._pendingRoom = roomId;
+  document.getElementById('start-btn').style.display = 'block';
 }
 
 function copyLink(e){
@@ -191,6 +186,18 @@ function shareLink(e){
     + '&text=' + encodeURIComponent('♟️ Play chess with me on Chess01!');
   if(tg && tg.openTelegramLink) tg.openTelegramLink(url);
   else window.open(url, '_blank');
+}
+
+function startAsHost(e){
+  e.stopPropagation();
+  const roomId = window._pendingRoom;
+  if(!roomId) return;
+  location.href = pageBase() + 'chess_miniapp.html'
+    + '?mode=host&room=' + roomId
+    + '&color=white&timer=600'
+    + '&my_name=' + encodeURIComponent(myName)
+    + '&my_elo=' + myElo
+    + '&opp_name=Friend&opp_elo=1200';
 }
 </script>
 </body>
