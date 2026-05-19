@@ -175,14 +175,50 @@ function startBot(e){
     +'&my_elo='+ME.elo+'&my_level='+ME.level;
 }
 
-function startFriend(e){
+let roomId = '';
+let roomLink = '';
+
+function createRoom(e){
   e.stopPropagation();
-  const fr=document.getElementById('fr-name').value.trim()||'Friend';
-  location.href=base()+'chess_miniapp.html'
-    +'?color=white&timer=600&bot=0&local2p=1'
-    +'&opp_name='+encodeURIComponent(fr)+'&opp_elo=1200&opp_level=1'
-    +'&my_name='+encodeURIComponent(ME.name)
-    +'&my_elo='+ME.elo+'&my_level='+ME.level;
+  // Generate unique room ID
+  roomId = 'c01-' + Math.random().toString(36).slice(2,8);
+  // Bot deep link — friend clicks this, bot sends them the join button
+  const BOT = 'Chess01Bot'; // ← your bot username
+  roomLink = 'https://t.me/' + BOT + '?start=join_' + roomId;
+  // Show the link
+  const box = document.getElementById('room-link-box');
+  box.textContent = roomLink;
+  box.style.display = 'block';
+  document.getElementById('gen-btn').textContent = '🔄 New Link';
+  document.getElementById('copy-btn').style.display = 'block';
+  document.getElementById('share-btn').style.display = 'block';
+  // Navigate to game as host
+  setTimeout(()=>{
+    location.href = base() + 'chess_miniapp.html'
+      + '?mode=host&room=' + roomId
+      + '&color=white&timer=600'
+      + '&my_name=' + encodeURIComponent(ME.name)
+      + '&my_elo=' + ME.elo + '&my_level=1'
+      + '&opp_name=Friend&opp_elo=1200';
+  }, 1200);
+}
+
+function copyRoom(e){
+  e.stopPropagation();
+  if(!roomLink) return;
+  navigator.clipboard?.writeText(roomLink).then(()=>{
+    document.getElementById('copy-btn').textContent = '✅ Copied!';
+    setTimeout(()=>document.getElementById('copy-btn').textContent='📋 Copy Link', 2000);
+  });
+}
+
+function shareRoom(e){
+  e.stopPropagation();
+  if(!roomLink) return;
+  const url = 'https://t.me/share/url?url=' + encodeURIComponent(roomLink)
+    + '&text=' + encodeURIComponent('♟️ Play chess with me on Chess01!');
+  if(tg && tg.openTelegramLink) tg.openTelegramLink(url);
+  else window.open(url, '_blank');
 }
 </script>
 </body>
