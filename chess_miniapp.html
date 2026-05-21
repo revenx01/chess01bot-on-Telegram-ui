@@ -301,24 +301,156 @@ function apply(from,to,promo){
 }
 
 // ── Bot ──────────────────────────────────────────────────────────────────────
+const PIECE_VAL={p:100,n:320,b:330,r:500,q:900,k:20000};
+
+// Piece-square tables (from white's perspective, rank 1 at bottom)
+const PST={
+  p:[ 0, 0, 0, 0, 0, 0, 0, 0,
+      50,50,50,50,50,50,50,50,
+      10,10,20,30,30,20,10,10,
+       5, 5,10,25,25,10, 5, 5,
+       0, 0, 0,20,20, 0, 0, 0,
+       5,-5,-10, 0, 0,-10,-5, 5,
+       5,10,10,-20,-20,10,10, 5,
+       0, 0, 0, 0, 0, 0, 0, 0],
+  n:[-50,-40,-30,-30,-30,-30,-40,-50,
+     -40,-20,  0,  0,  0,  0,-20,-40,
+     -30,  0, 10, 15, 15, 10,  0,-30,
+     -30,  5, 15, 20, 20, 15,  5,-30,
+     -30,  0, 15, 20, 20, 15,  0,-30,
+     -30,  5, 10, 15, 15, 10,  5,-30,
+     -40,-20,  0,  5,  5,  0,-20,-40,
+     -50,-40,-30,-30,-30,-30,-40,-50],
+  b:[-20,-10,-10,-10,-10,-10,-10,-20,
+     -10,  0,  0,  0,  0,  0,  0,-10,
+     -10,  0,  5, 10, 10,  5,  0,-10,
+     -10,  5,  5, 10, 10,  5,  5,-10,
+     -10,  0, 10, 10, 10, 10,  0,-10,
+     -10, 10, 10, 10, 10, 10, 10,-10,
+     -10,  5,  0,  0,  0,  0,  5,-10,
+     -20,-10,-10,-10,-10,-10,-10,-20],
+  r:[ 0, 0, 0, 0, 0, 0, 0, 0,
+       5,10,10,10,10,10,10, 5,
+      -5, 0, 0, 0, 0, 0, 0,-5,
+      -5, 0, 0, 0, 0, 0, 0,-5,
+      -5, 0, 0, 0, 0, 0, 0,-5,
+      -5, 0, 0, 0, 0, 0, 0,-5,
+      -5, 0, 0, 0, 0, 0, 0,-5,
+       0, 0, 0, 5, 5, 0, 0, 0],
+  q:[-20,-10,-10, -5, -5,-10,-10,-20,
+     -10,  0,  0,  0,  0,  0,  0,-10,
+     -10,  0,  5,  5,  5,  5,  0,-10,
+      -5,  0,  5,  5,  5,  5,  0, -5,
+       0,  0,  5,  5,  5,  5,  0, -5,
+     -10,  5,  5,  5,  5,  5,  0,-10,
+     -10,  0,  5,  0,  0,  0,  0,-10,
+     -20,-10,-10, -5, -5,-10,-10,-20],
+  k:[-30,-40,-40,-50,-50,-40,-40,-30,
+     -30,-40,-40,-50,-50,-40,-40,-30,
+     -30,-40,-40,-50,-50,-40,-40,-30,
+     -30,-40,-40,-50,-50,-40,-40,-30,
+     -20,-30,-30,-40,-40,-30,-30,-20,
+     -10,-20,-20,-20,-20,-20,-20,-10,
+      20, 20,  0,  0,  0,  0, 20, 20,
+      20, 30, 10,  0,  0, 10, 30, 20],
+};
+
+function sqIndex(sq){
+  const f=sq.charCodeAt(0)-97, r=parseInt(sq[1])-1;
+  return (7-r)*8+f;
+}
+
+function evaluate(){
+  if(game.in_checkmate()) return game.turn()==='w' ? -50000 : 50000;
+  if(game.in_draw()||game.in_stalemate()) return 0;
+  let score=0;
+  game.board().forEach((row,ri)=>row.forEach((p,fi)=>{
+    if(!p)return;
+    const idx=p.color==='w'?(7-ri)*8+fi:ri*8+(7-fi);
+    const pst=(PST[p.type]||[])[idx]||0;
+    const val=(PIECE_VAL[p.type]||0)+pst;
+    score+=p.color==='w'?val:-val;
+  }));
+  return score;
+}
+
+function orderMoves(moves){
+  return moves.sort((a,b)=>{
+    const va=a.captured?(PIECE_VAL[a.captured]||0)-(PIECE_VAL[a.piece]||0)/10:0;
+    const vb=b.captured?(PIECE_VAL[b.captured]||0)-(PIECE_VAL[b.piece]||0)/10:0;
+    return vb-va;
+  });
+}
+
+function minimax(depth,alpha,beta,maximizing){
+  if(depth===0||game.game_over()) return evaluate();
+  const moves=orderMoves(game.moves({verbose:true}));
+  if(maximizing){
+    let best=-Infinity;
+    for(const m of moves){
+      game.move(m);
+      best=Math.max(best,minimax(depth-1,alpha,beta,false));
+      game.undo();
+      alpha=Math.max(alpha,best);
+      if(beta<=alpha)break;
+    }
+    return best;
+  } else {
+    let best=Infinity;
+    for(const m of moves){
+      game.move(m);
+      best=Math.min(best,minimax(depth-1,alpha,beta,true));
+      game.undo();
+      beta=Math.min(beta,best);
+      if(beta<=alpha)break;
+    }
+    return best;
+  }
+}
+
+function getBestMove(depth){
+  const moves=orderMoves(game.moves({verbose:true}));
+  if(!moves.length)return null;
+  const botIsWhite=myColor==='black'; // bot plays opposite color
+  let best=null,bestScore=botIsWhite?-Infinity:Infinity;
+  for(const m of moves){
+    game.move(m);
+    const score=minimax(depth-1,-Infinity,Infinity,!botIsWhite);
+    game.undo();
+    if(botIsWhite?score>bestScore:score<bestScore){
+      bestScore=score;best=m;
+    }
+  }
+  return best||moves[0];
+}
+
 function scheduleBot(){
   botBusy=true;
   setStatus('🤖 '+oppNameP+' is thinking…');
-  setTimeout(runBot,500+Math.random()*700);
+  const delay=botDiff===1?300+Math.random()*400:botDiff===2?400+Math.random()*500:600+Math.random()*600;
+  setTimeout(runBot,delay);
 }
+
 function runBot(){
   if(over){botBusy=false;return;}
   const moves=game.moves({verbose:true});
   if(!moves.length){botBusy=false;return;}
   let pick;
-  if(botDiff>=3){
-    const caps=moves.filter(m=>m.captured),ctr=moves.filter(m=>['d4','d5','e4','e5'].includes(m.to));
-    pick=caps.length?caps[Math.floor(Math.random()*caps.length)]:ctr.length?ctr[Math.floor(Math.random()*ctr.length)]:moves[Math.floor(Math.random()*moves.length)];
-  }else if(botDiff===2){
+  if(botDiff===1){
+    // Easy: mostly random, occasionally picks a capture
     const caps=moves.filter(m=>m.captured);
-    pick=caps.length&&Math.random()>.4?caps[Math.floor(Math.random()*caps.length)]:moves[Math.floor(Math.random()*moves.length)];
-  }else{pick=moves[Math.floor(Math.random()*moves.length)];}
-  const r2=game.move({from:pick.from,to:pick.to,promotion:pick.promotion||undefined});
+    pick=caps.length&&Math.random()>.7
+      ?caps[Math.floor(Math.random()*caps.length)]
+      :moves[Math.floor(Math.random()*moves.length)];
+  } else if(botDiff===2){
+    // Medium: minimax depth 2
+    pick=getBestMove(2);
+  } else {
+    // Hard: minimax depth 3
+    pick=getBestMove(3);
+  }
+  if(!pick)pick=moves[0];
+  const r2=game.move({from:pick.from,to:pick.to,promotion:pick.promotion||'q'});
   if(!r2){botBusy=false;return;}
   lastF=pick.from;lastT=pick.to;selSq=null;legal=[];
   if(r2.captured)playSound('capture');else playSound('move');
