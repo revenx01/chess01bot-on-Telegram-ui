@@ -569,7 +569,7 @@ function showPromo(color){
   ['q','r','b','n'].forEach(p=>{
     const d=document.createElement('div');d.className='pp';
     d.innerHTML=`<img src="${PIECE}${color}${p.toUpperCase()}.svg">`;
-    d.onclick=()=>{$('promo').classList.remove('on');apply(promoQ.from,promoQ.to,p);promoQ=null;};
+    d.onclick=()=>{btnSound('promo');$('promo').classList.remove('on');apply(promoQ.from,promoQ.to,p);promoQ=null;};
     el.appendChild(d);
   });
   $('promo').classList.add('on');
@@ -584,6 +584,7 @@ function showBanner(roomId){
 }
 function hideBanner(){$('inv-banner').style.display='none';$('app').style.paddingTop='0';}
 function copyInv(){
+  btnSound('copy');
   navigator.clipboard?.writeText(invLink).then(()=>{
     const b=document.querySelector('#inv-banner .ibtn');
     b.textContent='✅';setTimeout(()=>b.textContent='Copy',1500);
@@ -650,11 +651,13 @@ function initGuest(roomId){
 
 // ── Actions ──────────────────────────────────────────────────────────────────
 function resign(){
+  btnSound('resign');
   if(over)return;over=true;stopTimer();
   $('end-ico').textContent='🏳️';$('end-title').textContent='You Resigned';$('end-sub').textContent='';
   $('ov-end').classList.add('on');
 }
-function goHome(){location.href=location.origin+location.pathname.replace('chess_miniapp.html','')+'index.html';}
+function goHome(){
+  btnSound('home');location.href=location.origin+location.pathname.replace('chess_miniapp.html','')+'index.html';}
 
 // ── Country Picker ───────────────────────────────────────────────────────────
 function openCountryPicker(){
@@ -680,6 +683,7 @@ function renderCountries(q){
 function selectCountry(c){
   myCountry=c;
   localStorage.setItem(CKEY,JSON.stringify(c));
+  btnSound('copy');
   document.getElementById('cpick').classList.remove('on');
   document.getElementById('my-info').textContent=c.flag;
 }
@@ -696,6 +700,44 @@ else{
   setStatus('✅ Your turn');
   if(myColor==='black'){botBusy=true;setTimeout(runBot,800);}
 }
+
+// ── Button sounds ─────────────────────────────────────────────────────────
+function btnSound(type){
+  try{
+    const ctx=getAC(); if(!ctx) return;
+    const o=ctx.createOscillator(),g=ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    if(type==='resign'){
+      o.type='sawtooth';
+      o.frequency.setValueAtTime(220,ctx.currentTime);
+      o.frequency.exponentialRampToValueAtTime(110,ctx.currentTime+0.2);
+      g.gain.setValueAtTime(0.12,ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.22);
+      o.start(); o.stop(ctx.currentTime+0.22);
+    } else if(type==='home'){
+      [523,440].forEach((f,i)=>{
+        const o2=ctx.createOscillator(),g2=ctx.createGain();
+        o2.connect(g2); g2.connect(ctx.destination);
+        o2.frequency.value=f;
+        g2.gain.setValueAtTime(0.08,ctx.currentTime+i*0.07);
+        g2.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+i*0.07+0.09);
+        o2.start(ctx.currentTime+i*0.07); o2.stop(ctx.currentTime+i*0.07+0.1);
+      });
+    } else if(type==='copy'){
+      o.frequency.setValueAtTime(880,ctx.currentTime);
+      g.gain.setValueAtTime(0.08,ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.1);
+      o.start(); o.stop(ctx.currentTime+0.1);
+    } else if(type==='promo'){
+      o.frequency.setValueAtTime(660,ctx.currentTime);
+      o.frequency.exponentialRampToValueAtTime(880,ctx.currentTime+0.08);
+      g.gain.setValueAtTime(0.1,ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.1);
+      o.start(); o.stop(ctx.currentTime+0.1);
+    }
+  }catch(e){}
+}
+
 </script>
 </body>
 </html>

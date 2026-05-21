@@ -206,6 +206,60 @@ function startAsHost(e){
     + '&my_elo=' + myElo
     + '&opp_name=Friend&opp_elo=1200';
 }
+
+// ── UI Sounds ─────────────────────────────────────────────────────────────
+const _AC = window.AudioContext||window.webkitAudioContext;
+let _actx = null;
+function _getAC(){ if(!_actx&&_AC) _actx=new _AC(); return _actx; }
+
+function uiSound(type){
+  try{
+    const ctx=_getAC(); if(!ctx) return;
+    const o=ctx.createOscillator(), g=ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    if(type==='tap'){
+      o.frequency.setValueAtTime(600,ctx.currentTime);
+      o.frequency.exponentialRampToValueAtTime(480,ctx.currentTime+0.06);
+      g.gain.setValueAtTime(0.1,ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.08);
+      o.start(); o.stop(ctx.currentTime+0.08);
+    } else if(type==='open'){
+      o.frequency.setValueAtTime(400,ctx.currentTime);
+      o.frequency.exponentialRampToValueAtTime(600,ctx.currentTime+0.1);
+      g.gain.setValueAtTime(0.08,ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.12);
+      o.start(); o.stop(ctx.currentTime+0.12);
+    } else if(type==='go'){
+      [523,659].forEach((f,i)=>{
+        const o2=ctx.createOscillator(),g2=ctx.createGain();
+        o2.connect(g2); g2.connect(ctx.destination);
+        o2.frequency.value=f;
+        g2.gain.setValueAtTime(0.1,ctx.currentTime+i*0.08);
+        g2.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+i*0.08+0.1);
+        o2.start(ctx.currentTime+i*0.08); o2.stop(ctx.currentTime+i*0.08+0.12);
+      });
+    } else if(type==='copy'){
+      o.type='sine';
+      o.frequency.setValueAtTime(880,ctx.currentTime);
+      g.gain.setValueAtTime(0.08,ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.1);
+      o.start(); o.stop(ctx.currentTime+0.1);
+    }
+  }catch(e){}
+}
+
+// Attach tap sound to all interactive elements
+document.addEventListener('DOMContentLoaded',()=>{
+  document.querySelectorAll('.card-top').forEach(el=>el.addEventListener('click',()=>uiSound('open')));
+  document.querySelectorAll('.diff').forEach(el=>el.addEventListener('click',()=>uiSound('tap')));
+  document.querySelectorAll('.go.green,.go.gold').forEach(el=>el.addEventListener('click',()=>uiSound('go')));
+  document.querySelector('.go.grey')?.addEventListener('click',()=>uiSound('tap'));
+  document.getElementById('copy-btn')?.addEventListener('click',()=>uiSound('copy'));
+  document.getElementById('share-btn')?.addEventListener('click',()=>uiSound('tap'));
+  document.getElementById('gen-btn')?.addEventListener('click',()=>uiSound('open'));
+  document.getElementById('start-btn')?.addEventListener('click',()=>uiSound('go'));
+});
+
 </script>
 </body>
 </html>
